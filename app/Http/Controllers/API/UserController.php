@@ -4,11 +4,18 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\UserServices;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
+    protected $userServices;
+
+    public function __construct(UserServices $userServices)
+    {
+        $this->userServices = $userServices;
+    }
+
     public function register(Request $request){
         $request->validate([
             "name" => "required|string",
@@ -16,11 +23,11 @@ class UserController extends Controller
             "password" => "required"
         ]);
 
-        User::create([
-            "name" => $request->name,
-            "email" => $request->email,
-            "hashed_password" => bcrypt($request->password)
-        ]);
+        $this->userServices->create(
+            $request->input('name'),
+            $request->input('email'),
+            $request->input('password')
+        );
 
         return response()->json([
             "status" => true,
@@ -35,41 +42,21 @@ class UserController extends Controller
             "password" => "required"
         ]);
 
-        $user = User::where("email", $request->email)->first();
+        $response = $this->userServices->login(
+            $request->input('email'),
+            $request->input('password')
+        );
 
-        if(!empty($user)){
-            if(Hash::check($request->password, $user->hashed_password)){
-                $token = $user->createToken("mytoken")->accessToken;
-                return response()->json([
-                    "status" => true,
-                    "message" => "Login Successful",
-                    "token" => $token,
-                    "data" => [],
-                ]);
-            } else {
-                return response()->json([
-                    "status" => false,
-                    "message" => "incorrect password",
-                    "data" => []
-                ]);
-            }
-        } else {
-            return response()->json([
-                "status" => false,
-                "message" => "Invalid credentials",
-                "data" => []
-            ]);
-        }
+        return response()->json($response);
     }
 
     public function logout(){
         $token = auth()->user()->token();
 
-        $token -> revoke();
+        $response = $this->userServices->logout(
+            $token
+        );
 
-        return response()->json([
-            "status" => true,
-            "message" => "User logged out successfully"
-        ]);
+        return response()->json($response);
     }
 }
