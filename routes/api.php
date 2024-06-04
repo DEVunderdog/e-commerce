@@ -23,6 +23,9 @@ Route::group([
         Route::get('orders', [StatController::class, 'getUserOrdersWithProducts']);
         Route::get('orders/recent', [StatController::class, 'getUserRecentOrders']);
         Route::get('orders/{status}', [StatController::class, 'getUserOrdersByStatus']);
+        Route::get('users_orders', [StatController::class, 'getOrdersWithUserInfo']);
+        Route::get('all_users', [StatController::class, 'getAllUsersWithOrders']);
     });
     Route::get("product/top", [StatController::class, 'getTopSellingProducts']);
+    Route::get('products_combination', [StatController::class, 'getAllProductOrderCombination']);
 });

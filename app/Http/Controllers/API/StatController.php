@@ -6,17 +6,47 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItems;
 use App\Models\Product;
+use App\Services\StatsService;
 use Illuminate\Support\Facades\DB;
 
 class StatController extends Controller
 {
+    protected $statsService;
+
+    public function __construct(StatsService $statsService)
+    {
+        $this->statsService = $statsService;
+    }
+
+    public function getOrdersWithUserInfo(){
+        $orders = $this->statsService->ordersWithUserInfo();
+
+        return response()->json($orders);
+    }
+
+    public function getAllUsersWithOrders(){
+        $users_orders = $this->statsService->allUsersWithOrders();
+
+        return response()->json($users_orders);
+    }
+
+    public function getAllOrdersWithUsers(){
+        $order_users = $this->statsService->allUsersWithOrders();
+
+        return response()->json($order_users);
+    }
+
+    public function getAllProductOrderCombination(){
+        $product_order = $this->statsService->allProductOrderCombinations();
+
+        return response()->json($product_order);
+    }
+
     public function getUserOrdersWithProducts()
     {
         $userId = auth()->user()->id;
 
-        $orders = Order::where('user_id', $userId)
-            ->with('orderItems.product')
-            ->get();
+        $orders = $this->statsService->userOrderWithProducts($userId);
 
         return response()->json($orders);
     }
@@ -26,29 +56,18 @@ class StatController extends Controller
 
         $userId = auth()->user()->id;
 
-        $recentOrders = Order::where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+        $recentOrders = $this->statsService->userRecentOrders($userId, 10);
 
         return response()->json($recentOrders);
     }
 
     public function getTopSellingProducts()
     {
-        $topProducts = OrderItems::select('product_id', DB::raw('SUM(quantity) as total_sold'))
-            ->groupBy('product_id')
-            ->orderBy('total_sold', 'desc')
-            ->limit(10)
-            ->get();
-
-        $productIds = $topProducts->pluck('product_id');
-        $products = Product::whereIn('id', $productIds)->get();
+        $topProducts = $this->statsService->topSellingProducts(10);
 
 
         return response()->json([
-            'top_products' => $products,
-            'total_sold_per_product' => $topProducts->keyBy('product_id'),
+            'top_products' => $topProducts,
         ]);
     }
 
@@ -56,38 +75,9 @@ class StatController extends Controller
     {
         $userId = auth()->user()->id;
 
-        $orders = Order::where('user_id', $userId)
-            ->where('status', $status)
-            ->get();
+        $orders = $this->statsService->userOrderByStatus($status, $userId);
 
         return response()->json($orders);
     }
 
-    public function getUserOrderByExplicitJoin()
-    {
-        $userId = auth()->user()->id;
-
-        $orders = Order::select('o.*', 'p.name as product_name')
-            ->from('order as o')
-            ->join('order_item as oi', 'o.id', '=', 'oi.order_id')
-            ->join('product as p', 'oi.product_id', '=', 'p.id')
-            ->where('o.user_id', $userId)
-            ->get();
-
-        return response()->json($orders);
-    }
-
-    public function getUserOrderByStatusExplicitJoin($status)
-    {
-        $userId = auth()->user()->id;
-
-        $orders = DB::table('order as o')
-            ->select('o.*')
-            ->where('o.user_id', $userId)
-            ->where('o.status', $status)
-            ->join('order_item as oi', 'o.id', '=', 'oi.order_id')
-            ->get();
-
-        return response()->json($orders);
-    }
 }
